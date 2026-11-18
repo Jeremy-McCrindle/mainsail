@@ -1,0 +1,51 @@
+# Deploy watch: jerrypi's updater reports every deploy as a GitHub Deployment (environments
+# `jerrypi` and `jerrypi-staging`). When one ends in failure or error this run fails, so
+# GitHub emails the token's owner, and the summary says where the full log is.
+# Other states (queued, in_progress, success) skip the job.
+name: Deploy watch
+
+run-name: 'Deploy ${{ github.event.deployment_status.state }}: ${{ github.event.deployment.payload.version }} to ${{ github.event.deployment.environment }}'
+
+on:
+  deployment_status:
+
+permissions: {}
+
+jobs:
+  report:
+    name: Report a failed deploy
+    if: github.event.deployment_status.state == 'failure' || github.event.deployment_status.state == 'error'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarise and fail
+        env:
+          STATE: ${{ github.event.deployment_status.state }}
+          ENVIRONMENT: ${{ github.event.deployment.environment }}
+          VERSION: ${{ github.event.deployment.payload.version }}
+          COMMIT: ${{ github.event.deployment.sha }}
+          DEPLOYMENT_ID: ${{ github.event.deployment.id }}
+          DESCRIPTION: ${{ github.event.deployment_status.description }}
+          LOG_URL: ${{ github.event.deployment_status.log_url }}
+          AT: ${{ github.event.deployment_status.created_at }}
+        run: |
+          channel=production
+          [[ "$ENVIRONMENT" == *staging ]] && channel=staging
+          {
+            echo "## Deploy of $VERSION to $ENVIRONMENT: $STATE"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| What happened | $DESCRIPTION |"
+            echo "| When | $AT |"
+            echo "| Commit | $COMMIT |"
+            echo "| Deployment id | $DEPLOYMENT_ID |"
+            echo "| Log (on the tailnet) | $LOG_URL |"
+            echo
+            echo "Every line of the updater's log carries \`deployment=$DEPLOYMENT_ID\`:"
+            echo
+            echo '```'
+            echo "ssh jerrypi journalctl -u mainsail-updater@$channel --since '$AT' -o cat | grep -F 'deployment=$DEPLOYMENT_ID'"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error title=Deploy to $ENVIRONMENT $STATE::$VERSION: $DESCRIPTION"
+          exit 1

@@ -1,0 +1,91 @@
+# Fork CI: checks every pull request and every push on the fork's three branches.
+# Branch flow is feature branch -> dev -> staging -> main (see FORK.md). The job names are
+# the required status checks in the branch rulesets; rename them there too.
+name: Fork CI
+
+on:
+  pull_request:
+    branches: [dev, staging, main]
+  push:
+    branches: [dev, staging, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  promotion:
+    name: Promotion order
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the pull request's source branch
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [[ "$EVENT" != pull_request ]]; then
+            echo "Not a pull request; nothing to check."
+            exit 0
+          fi
+          case "$BASE" in
+            main) allowed=staging ;;
+            staging) allowed=dev ;;
+            *) echo "Pull request into $BASE: any source branch is fine."; exit 0 ;;
+          esac
+          if [[ "$HEAD" != "$allowed" || "$HEAD_REPO" != "$REPO" ]]; then
+            echo "::error::Pull requests into $BASE must come from $allowed in $REPO; this one comes from $HEAD_REPO:$HEAD."
+            exit 1
+          fi
+          echo "$HEAD -> $BASE follows dev -> staging -> main."
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - uses: actions/upload-artifact@v5
+        with:
+          name: mainsail-${{ github.sha }}
+          path: dist/mainsail.zip
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:unit
+
+  e2e:
+    name: E2E tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: cypress-io/github-action@v6
+        with:
+          install: false
+          start: npm run preview

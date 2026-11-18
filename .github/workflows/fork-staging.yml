@@ -1,0 +1,55 @@
+# Staging build: every push to staging replaces the rolling `staging` pre-release.
+# jerrypi's updater (staging channel) deploys it to the preview on port 8081 within minutes.
+# The release title is the build's version, which the updater compares with the `.version`
+# file it has installed.
+name: Staging build
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fork-staging
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Publish staging pre-release
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Set the build version
+        id: version
+        run: |
+          base=$(node -p "require('./package.json').version")
+          version="${base}-staging.${GITHUB_RUN_NUMBER}"
+          npm version --no-git-tag-version "$version"
+          echo "version=v$version" >> "$GITHUB_OUTPUT"
+
+      - run: npm run build
+
+      - name: Package
+        run: |
+          mv dist/mainsail.zip mainsail.zip
+          sha256sum mainsail.zip > mainsail.zip.sha256
+
+      - name: Replace the staging pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release delete staging --cleanup-tag --yes || true
+          gh release create staging mainsail.zip mainsail.zip.sha256 \
+            --prerelease --latest=false --target "$GITHUB_SHA" --title "$VERSION" \
+            --notes "Staging build $VERSION from ${GITHUB_SHA::7}. Deployed to the preview on jerrypi:8081; not a release."
