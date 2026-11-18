@@ -23,12 +23,12 @@ pushes and deletion. The `Promotion order` check enforces the source branch.
 
 ## Workflows
 
-| Workflow                | Runs on                     | Does                                                                         |
-| ----------------------- | --------------------------- | ---------------------------------------------------------------------------- |
-| `fork-ci.yml`           | pull requests and pushes    | promotion order, lint and build, unit tests, Cypress                         |
-| `fork-staging.yml`      | push to `staging`           | replaces the rolling `staging` pre-release (`v<upstream>-staging.<run>`)     |
-| `fork-release.yml`      | push to `main`              | publishes release `v<upstream>-fork.<n>` with `mainsail.zip` and its SHA-256 |
-| `fork-deploy-watch.yml` | jerrypi's deployment report | fails, so GitHub emails, when a deploy to jerrypi fails                      |
+| Workflow                | Runs on                     | Does                                                                           |
+| ----------------------- | --------------------------- | ------------------------------------------------------------------------------ |
+| `fork-ci.yml`           | pull requests and pushes    | promotion order, lint and build, unit tests, Cypress                           |
+| `fork-staging.yml`      | push to `staging`           | replaces the rolling `staging-build` pre-release (`v<upstream>-staging.<run>`) |
+| `fork-release.yml`      | push to `main`              | publishes release `v<upstream>-fork.<n>` with `mainsail.zip` and its SHA-256   |
+| `fork-deploy-watch.yml` | jerrypi's deployment report | fails, so GitHub emails, when a deploy to jerrypi fails                        |
 
 Upstream's workflows (`ci.yml`, `release.yml`, `publish_docker.yml`, the PR, stale and vouch
 workflows) are disabled in the repository's Actions settings, not edited. After merging an
@@ -43,7 +43,7 @@ jerrypi pulls; nothing pushes to it. The updater lives in the printer's memory r
 - **Production** (`jerrypi:8080`, environment `jerrypi`): the release marked latest, deployed
   only while the printer is idle: not printing or paused, no heater on, and Klipper idle for
   its 10-minute idle timeout. To roll back, mark an older release as latest.
-- **Staging** (`jerrypi:8081`, environment `jerrypi-staging`): the `staging` pre-release,
+- **Staging** (`jerrypi:8081`, environment `jerrypi-staging`): the `staging-build` pre-release,
   deployed at once.
 
 Each deploy shows in the repository's Environments as a Deployment, with statuses `queued`
