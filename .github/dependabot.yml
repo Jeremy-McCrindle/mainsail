@@ -1,15 +1,20 @@
-# Set update schedule for GitHub Actions
+# Fork: weekly update pull requests go to `dev` and wait for the owner's review (FORK.md).
+# Security-fix pull requests target the default branch, which is also `dev`.
 
 version: 2
 updates:
   - package-ecosystem: 'github-actions'
     directory: '/'
+    target-branch: 'dev'
+    assignees:
+      - 'Jeremy-McCrindle'
     schedule:
       # Check for updates to GitHub Actions every week
       interval: 'weekly'
 
   - package-ecosystem: 'npm'
     directory: '/'
+    target-branch: 'dev'
     schedule:
       interval: 'weekly'
     allow:
@@ -18,4 +23,4 @@ updates:
         update-type: 'semver:non-major'
         dependency-type: 'direct'
     assignees:
-      - 'meteyou'
+      - 'Jeremy-McCrindle'

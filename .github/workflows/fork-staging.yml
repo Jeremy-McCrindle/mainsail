@@ -1,4 +1,5 @@
-# Staging build: every push to staging replaces the rolling `staging` pre-release.
+# Staging build: every push to staging replaces the rolling `staging-build` pre-release.
+# (Not tagged `staging`: a tag named like the branch makes `git push origin staging` ambiguous.)
 # jerrypi's updater (staging channel) deploys it to the preview on port 8081 within minutes.
 # The release title is the build's version, which the updater compares with the `.version`
 # file it has installed.
@@ -14,7 +15,7 @@ permissions:
 
 concurrency:
   group: fork-staging
-  cancel-in-progress: true
+  cancel-in-progress: false # a cancel between delete and create would leave no pre-release
 
 jobs:
   publish:
@@ -49,7 +50,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release delete staging --cleanup-tag --yes || true
-          gh release create staging mainsail.zip mainsail.zip.sha256 \
+          gh release delete staging-build --cleanup-tag --yes || true
+          gh release create staging-build mainsail.zip mainsail.zip.sha256 \
             --prerelease --latest=false --target "$GITHUB_SHA" --title "$VERSION" \
             --notes "Staging build $VERSION from ${GITHUB_SHA::7}. Deployed to the preview on jerrypi:8081; not a release."
