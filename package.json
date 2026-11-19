@@ -20,7 +20,9 @@
         "i18n-extract": "node ./scripts/i18n-extract.js",
         "preview": "vite preview",
         "start": "vite build && vite preview",
-        "test": "start-server-and-test preview http://127.0.0.1:4173/ 'cypress run'",
+        "fake-moonraker": "node cypress/fake-moonraker/cli.js",
+        "serve:fake": "vite serve --config cypress/fake-moonraker/vite.config.ts",
+        "test": "node cypress/fake-moonraker/build-if-needed.js && start-server-and-test fake-moonraker http://127.0.0.1:7125/_fake/health 'vite preview --config cypress/fake-moonraker/vite.config.ts --strictPort' http://127.0.0.1:4173/ 'cypress run'",
         "test:ui": "cypress open",
         "test:unit": "vitest run",
         "changelog": "git cliff v0.0.4..$(git describe --tags $(git rev-list --tags --max-count=1)) --output CHANGELOG.md"
@@ -110,7 +112,8 @@
         "vue-i18n-extract": "^2.0.7",
         "vue-router": "^3.5.2",
         "vue-template-compiler": "^2.7.16",
-        "workbox-core": "^7.0.0"
+        "workbox-core": "^7.0.0",
+        "ws": "^8.23.0"
     },
     "postcss": {
         "plugins": {
