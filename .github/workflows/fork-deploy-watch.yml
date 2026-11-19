@@ -1,10 +1,13 @@
 # Deploy watch: jerrypi's updater reports every deploy as a GitHub Deployment (environments
 # `jerrypi` and `jerrypi-staging`). When one ends in failure or error this run fails, so
 # GitHub emails the token's owner, and the summary says where the full log is.
-# Other states (queued, in_progress, success) skip the job.
+# The updater also reports health problems (no release, failing runs, a deploy queued for
+# days, the token near expiry) as failures in environment `jerrypi-health`; those fail the
+# `health` job instead. Other states (queued, in_progress, success, heartbeats and
+# recoveries) skip both jobs.
 name: Deploy watch
 
-run-name: 'Deploy ${{ github.event.deployment_status.state }}: ${{ github.event.deployment.payload.version }} to ${{ github.event.deployment.environment }}'
+run-name: "${{ github.event.deployment.environment == 'jerrypi-health' && format('{0} ({1})', github.event.deployment.payload.version, github.event.deployment_status.state) || format('Deploy {0}: {1} to {2}', github.event.deployment_status.state, github.event.deployment.payload.version, github.event.deployment.environment) }}"
 
 on:
   deployment_status:
@@ -14,7 +17,9 @@ permissions: {}
 jobs:
   report:
     name: Report a failed deploy
-    if: github.event.deployment_status.state == 'failure' || github.event.deployment_status.state == 'error'
+    if: >-
+      (github.event.deployment_status.state == 'failure' || github.event.deployment_status.state == 'error')
+      && github.event.deployment.environment != 'jerrypi-health'
     runs-on: ubuntu-latest
     steps:
       - name: Summarise and fail
@@ -48,4 +53,56 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           echo "::error title=Deploy to $ENVIRONMENT $STATE::$VERSION: $DESCRIPTION"
+          exit 1
+
+  health:
+    name: Report a health problem
+    if: >-
+      (github.event.deployment_status.state == 'failure' || github.event.deployment_status.state == 'error')
+      && github.event.deployment.environment == 'jerrypi-health'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarise and fail
+        env:
+          CHANNEL: ${{ github.event.deployment.payload.channel }}
+          PROBLEM: ${{ github.event.deployment.payload.problem }}
+          SINCE: ${{ github.event.deployment.payload.since }}
+          DEPLOYMENT_ID: ${{ github.event.deployment.id }}
+          DESCRIPTION: ${{ github.event.deployment_status.description }}
+          LOG_URL: ${{ github.event.deployment_status.log_url }}
+          AT: ${{ github.event.deployment_status.created_at }}
+        run: |
+          case "$CHANNEL" in production | staging) ;; *) CHANNEL=production ;; esac
+          case "$PROBLEM" in
+            no-release) meaning="The updater has found no release to follow for an hour. Production follows the release marked latest; staging follows the \`staging-build\` pre-release, which \`fork-staging.yml\` publishes on every push to \`staging\`." ;;
+            run-error) meaning="The updater's runs have stopped before finishing for an hour: it cannot read the release from GitHub, or something outside a deploy fails. The description has the last error." ;;
+            queued) meaning="A deploy has waited for the printer for 48 hours. Long prints and filament drying hold it on purpose; this long usually means a heater left on or Klipper never going idle." ;;
+            token-expiring) meaning="The updater's GitHub token expires within 14 days. Make a new fine-grained token (Deployments: read and write on this repository) and install it with the updater's install script (\`--token-file\`)." ;;
+            *) meaning="The updater reported a problem it has no explanation for here." ;;
+          esac
+          since=$(date -u -d "${SINCE:-$AT}" '+%Y-%m-%d %H:%M:%S UTC' 2>/dev/null || echo "$AT")
+          {
+            echo "## Health problem on jerrypi: $CHANNEL ${PROBLEM:-unknown}"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| What happened | $DESCRIPTION |"
+            echo "| Channel | $CHANNEL (\`mainsail-updater@$CHANNEL\`) |"
+            echo "| Problem | ${PROBLEM:-unknown} |"
+            echo "| Watched since | $since |"
+            echo "| Reported | $AT |"
+            echo "| Deployment id | $DEPLOYMENT_ID |"
+            echo "| Log (on the tailnet) | $LOG_URL |"
+            echo
+            echo "$meaning"
+            echo
+            echo "The updater marks this Deployment \`success\` when the problem clears, and reports it once until then."
+            echo "Its log since the problem began, and the health lines alone:"
+            echo
+            echo '```'
+            echo "ssh jerrypi journalctl -u mainsail-updater@$CHANNEL --since '$since' -o cat"
+            echo "ssh jerrypi journalctl -u mainsail-updater@$CHANNEL -o cat | grep -F 'problem=$PROBLEM'"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error title=Health problem on jerrypi ($CHANNEL)::$DESCRIPTION"
           exit 1
