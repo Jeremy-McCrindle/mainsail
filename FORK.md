@@ -66,3 +66,35 @@ git push -u origin sync/upstream-<tag>   # then a pull request into dev
 
 The release numbering follows `package.json`: after merging upstream v2.20.0, the next
 release is `v2.20.0-fork.1`.
+
+## Alerts
+
+Every alert reaches the owner as a GitHub email, from a failed workflow run or from an issue
+a workflow opens; nothing else is involved.
+
+| Alert                                               | Arrives as                                                             | Clears                           |
+| --------------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------- |
+| A deploy failed                                     | a failed **Deploy watch** run, job `Report a failed deploy`            | a newer release deploys          |
+| No release found for 60 minutes (`no-release`)      | a failed **Deploy watch** run, job `Report a health problem`           | `success` on the same Deployment |
+| Runs failing for 60 minutes (`run-error`)           | the same                                                               | the same                         |
+| A deploy queued for 48 hours (`queued`)             | the same                                                               | the same                         |
+| The token expires within 14 days (`token-expiring`) | the same                                                               | the same                         |
+| No heartbeat from a channel for 26 hours            | an issue `Updater heartbeat missing: <channel>`, label `updater-alert` | Fork watch closes it             |
+| A newer upstream Mainsail release                   | an issue `Upstream Mainsail <tag> is out`, label `upstream-sync`       | Fork watch closes it             |
+
+- **Deploys** report on their own Deployment in `jerrypi` or `jerrypi-staging`; a `failure`
+  fails Deploy watch.
+- **Health problems** come from the updater, which checks each channel after every run and
+  reports a problem once, as `failure` on a Deployment named `health: <channel> <problem>`
+  in environment `jerrypi-health`. The run's summary says what the problem means and gives
+  the journal command. When the problem clears, the same Deployment gets `success`.
+- **Heartbeats**: each channel posts `success` once a day on its own long-lived Deployment
+  in `jerrypi-health`. Heartbeats and recoveries skip Deploy watch. **Fork watch**
+  (`fork-watch.yml`, daily and by hand) opens the issue when one is over 26 hours old, which
+  covers the updater not running at all: the Pi down, the timer stopped, the token rejected.
+- **Upstream releases**: Fork watch also compares `mainsail-crew/mainsail`'s latest release
+  with `package.json` and opens the issue, with the merge steps above, until the merge lands.
+
+GitHub disables scheduled workflows in a public repository after 60 days without activity,
+and may start them disabled in a fork. Check with `gh workflow list -R Jeremy-McCrindle/mainsail`
+and enable Fork watch if it shows disabled.
