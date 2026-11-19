@@ -90,7 +90,7 @@ a workflow opens; nothing else is involved.
   the journal command. When the problem clears, the same Deployment gets `success`.
 - **Heartbeats**: each channel posts `success` once a day on its own long-lived Deployment
   in `jerrypi-health`. Heartbeats and recoveries skip Deploy watch. **Fork watch**
-  (`fork-watch.yml`, daily and by hand) opens the issue when one is over 26 hours old, which
+  (`fork-watch.yml`, every 3 hours and by hand) opens the issue when one is over 26 hours old, which
   covers the updater not running at all: the Pi down, the timer stopped, the token rejected.
 - **Upstream releases**: Fork watch also compares `mainsail-crew/mainsail`'s latest release
   with `package.json` and opens the issue, with the merge steps above, until the merge lands.

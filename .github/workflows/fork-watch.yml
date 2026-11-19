@@ -11,7 +11,7 @@ name: Fork watch
 
 on:
   schedule:
-    - cron: '23 7 * * *'
+    - cron: '23 */3 * * *'
   workflow_dispatch:
 
 permissions: {}
