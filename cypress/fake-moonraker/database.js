@@ -4,7 +4,16 @@
 import { RpcError } from './rpc-error.js'
 import { MOONRAKER_BAD_REQUEST, MOONRAKER_NOT_FOUND } from './constants.js'
 
-const splitKey = (key) => (key === undefined || key === null || key === '' ? [] : String(key).split('.'))
+// Keys that would reach Object.prototype if used as property names.
+const UNSAFE_PARTS = new Set(['__proto__', 'constructor', 'prototype'])
+
+const assertSafe = (parts) => {
+    if (parts.some((part) => UNSAFE_PARTS.has(part)))
+        throw new RpcError(MOONRAKER_BAD_REQUEST, `unsafe database key: ${parts.join('.')}`)
+    return parts
+}
+
+const splitKey = (key) => assertSafe(key === undefined || key === null || key === '' ? [] : String(key).split('.'))
 
 const notFound = (namespace, key) =>
     new RpcError(
@@ -33,6 +42,7 @@ export const getItem = (database, { namespace, key }) => {
 export const postItem = (database, { namespace, key, value }) => {
     const parts = splitKey(key)
     if (!namespace || parts.length === 0) throw new RpcError(MOONRAKER_BAD_REQUEST, 'namespace and key are required')
+    assertSafe([namespace])
 
     const root = database[namespace] ?? {}
     database[namespace] = root

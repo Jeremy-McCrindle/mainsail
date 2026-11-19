@@ -12,6 +12,7 @@ const proxy = Object.fromEntries(
 )
 
 export default mergeConfig(baseConfig, {
-    server: { proxy },
+    // Loopback only: the fake accepts anything, so keep it off the network.
+    server: { proxy, host: '127.0.0.1' },
     preview: { proxy },
 })
