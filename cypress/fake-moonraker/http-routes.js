@@ -2,7 +2,7 @@
 // which mirrors the JSON-RPC methods (/server/history/totals -> server.history.totals).
 
 import { RpcError } from './rpc-error.js'
-import { callMethod } from './rpc.js'
+import { callMethod, INTERNAL_ERROR_MESSAGE, logLine } from './rpc.js'
 import { CONTROL_PREFIX, JSONRPC_METHOD_NOT_FOUND, MOONRAKER_NOT_FOUND } from './constants.js'
 
 const HTTP_OK = 200
@@ -51,7 +51,6 @@ const readBody = async (req) => {
 }
 
 const httpStatusFor = (error) => {
-    if (!(error instanceof RpcError)) return HTTP_SERVER_ERROR
     if (error.code === JSONRPC_METHOD_NOT_FOUND || error.code === MOONRAKER_NOT_FOUND) return HTTP_NOT_FOUND
     return HTTP_BAD_REQUEST
 }
@@ -105,6 +104,10 @@ export const createHttpHandler = (context) => async (req, res) => {
 
         return await handleApi(req, res, url, context)
     } catch (error) {
-        sendError(res, httpStatusFor(error), error instanceof Error ? error.message : String(error))
+        if (error instanceof RpcError) return sendError(res, httpStatusFor(error), error.message)
+
+        // Internal failures stay in the fake's log; the client gets no stack or message.
+        logLine(`${req.method} ${url.pathname} failed: ${error instanceof Error ? error.stack : error}`)
+        sendError(res, HTTP_SERVER_ERROR, INTERNAL_ERROR_MESSAGE)
     }
 }

@@ -6,6 +6,7 @@ import { RPC_METHODS } from './rpc-methods.js'
 import { JSONRPC_INTERNAL_ERROR, JSONRPC_INVALID_REQUEST, JSONRPC_METHOD_NOT_FOUND } from './constants.js'
 
 const LOG_PREFIX = '[fake-moonraker]'
+export const INTERNAL_ERROR_MESSAGE = 'Internal error in the fake Moonraker; see its log'
 
 const errorResponse = (id, error) => ({ jsonrpc: '2.0', error: error.toJson(), id: id ?? null })
 
@@ -30,10 +31,11 @@ const handleOne = (message, context) => {
         const result = callMethod(message.method, message.params, context)
         return { jsonrpc: '2.0', result, id: message.id ?? null }
     } catch (error) {
-        if (!(error instanceof RpcError)) console.error(`${LOG_PREFIX} ${message.method} failed:`, error)
-        const rpcError = error instanceof RpcError ? error : new RpcError(JSONRPC_INTERNAL_ERROR, String(error))
+        if (error instanceof RpcError) return errorResponse(message.id, error)
 
-        return errorResponse(message.id, rpcError)
+        // Internal failures stay in the fake's log; the client gets no stack or message.
+        console.error(`${LOG_PREFIX} ${message.method} failed:`, error)
+        return errorResponse(message.id, new RpcError(JSONRPC_INTERNAL_ERROR, INTERNAL_ERROR_MESSAGE))
     }
 }
 
