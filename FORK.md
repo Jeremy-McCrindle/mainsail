@@ -3,6 +3,12 @@
 `Jeremy-McCrindle/mainsail` is Mainsail with additions for one printer, jerrypi (a
 Creality Ender 3 V3 SE on Klipper). Upstream's own files keep their meaning; this file covers
 what the fork adds. Keep fork work in new files where possible, so upstream merges stay small.
+The working loop for a change (spec, tests, browser preview, review) is in
+[agent_docs/FORK_WORKFLOW.md](agent_docs/FORK_WORKFLOW.md).
+
+**This repository is public.** Nothing personal goes in it: no addresses, tokens or notes
+about the owner. Project facts belong here; personal context lives in the owner's private
+memory repository.
 
 ## Branches
 
@@ -12,7 +18,8 @@ what the fork adds. Keep fork work in new files where possible, so upstream merg
 | `staging` | Finished work, tested together on the preview at `jerrypi:8081`. | `dev` only               |
 | `dev`     | Work in progress, one feature at a time.                         | feature branches         |
 
-A feature starts as a branch off `dev` (`feat/<name>`, `fix/<name>`) and merges into `dev`
+`dev` is the default branch, so new pull requests and Dependabot's land there. A feature
+starts as a branch off `dev` (`feat/<name>`, `fix/<name>`) and merges into `dev`
 by pull request. When it is done, a `dev` -> `staging` pull request takes it to the preview;
 when everything on staging works together, a `staging` -> `main` pull request releases it.
 Merge with merge commits (not squash or rebase), so the three branches share history and
@@ -33,6 +40,15 @@ pushes and deletion. The `Promotion order` check enforces the source branch.
 Upstream's workflows (`ci.yml`, `release.yml`, `publish_docker.yml`, the PR, stale and vouch
 workflows) are disabled in the repository's Actions settings, not edited. After merging an
 upstream release, disable any workflow it adds: `gh workflow disable <name> -R Jeremy-McCrindle/mainsail`.
+
+## Security and dependencies
+
+- **Dependabot** opens weekly pull requests into `dev` for minor and patch updates to npm
+  packages and GitHub Actions (`.github/dependabot.yml`), and security-fix pull requests
+  whenever an alert has a fix. All of them wait for the owner's review, then promote like any
+  change. Alerts are in the Security tab.
+- **CodeQL** (GitHub's default setup) scans `dev` and every pull request into it.
+- **Secret scanning** with push protection is on.
 
 ## Deploys
 
