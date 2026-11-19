@@ -173,7 +173,7 @@ function heartbeatBody(channel, last) {
         `ssh jerrypi journalctl -u mainsail-updater@${channel} -n 50 -o cat`,
         '```',
         '',
-        'A rejected token logs `event=github.rejected`; install a new one with the updater\'s install script (`--token-file`). Fork watch closes this issue when heartbeats resume.',
+        "A rejected token logs `event=github.rejected`; install a new one with the updater's install script (`--token-file`). Fork watch closes this issue when heartbeats resume.",
     ].join('\n')
 }
 
