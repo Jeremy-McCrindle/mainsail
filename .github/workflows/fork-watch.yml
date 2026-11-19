@@ -1,0 +1,59 @@
+# Fork watch: daily checks that open an issue when something needs attention, so GitHub
+# emails the owner, and close it again when the condition clears. The logic is in
+# .github/scripts/fork-watch.cjs; FORK.md ("Alerts") lists every alert and where it arrives.
+#
+# - Upstream release: a newer mainsail-crew/mainsail release than package.json's version
+#   opens "Upstream Mainsail <tag> is out" (label upstream-sync) with the merge steps.
+# - Updater heartbeat: jerrypi's updater posts a heartbeat per channel to the jerrypi-health
+#   environment once a day; none for 26 hours opens "Updater heartbeat missing: <channel>"
+#   (label updater-alert).
+name: Fork watch
+
+on:
+  schedule:
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: fork-watch
+  cancel-in-progress: false
+
+jobs:
+  upstream:
+    name: Upstream release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github/scripts # cone mode also checks out the root files
+          persist-credentials: false
+      - name: Compare with the latest upstream release
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { checkUpstream } = require('./.github/scripts/fork-watch.cjs')
+            await checkUpstream({ github, context, core })
+
+  heartbeat:
+    name: Updater heartbeat
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - name: Check each channel's last heartbeat
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { checkHeartbeats } = require('./.github/scripts/fork-watch.cjs')
+            await checkHeartbeats({ github, context, core })
