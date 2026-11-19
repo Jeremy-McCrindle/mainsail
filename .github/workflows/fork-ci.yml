@@ -56,6 +56,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      - run: npm run format:check
       - run: npm run build
       - uses: actions/upload-artifact@v5
         with:
@@ -85,7 +86,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - uses: cypress-io/github-action@v6
+      # Starts the fake Moonraker and a preview server forwarding to it, then runs Cypress.
+      - run: npm run test
+      - uses: actions/upload-artifact@v5
+        if: failure()
         with:
-          install: false
-          start: npm run preview
+          name: cypress-artifacts-${{ github.sha }}
+          path: |
+            cypress/screenshots
+            cypress/videos
+          if-no-files-found: ignore
