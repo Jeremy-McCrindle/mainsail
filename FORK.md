@@ -50,6 +50,34 @@ upstream release, disable any workflow it adds: `gh workflow disable <name> -R J
 - **CodeQL** (GitHub's default setup) scans `dev` and every pull request into it.
 - **Secret scanning** with push protection is on.
 
+## Fake Moonraker
+
+`cypress/fake-moonraker/` is a small Node server that answers Mainsail's websocket JSON-RPC
+and HTTP calls as an idle Ender 3 V3 SE would, and records every request. Use it for E2E
+tests and for previews; never point a development build at the real printer, because the UI
+sends G-code that moves hardware.
+
+| Command                  | Does                                                                    |
+| ------------------------ | ----------------------------------------------------------------------- |
+| `npm run fake-moonraker` | starts the fake on `127.0.0.1:7125`                                     |
+| `npm run serve:fake`     | dev server on port 8080, forwarding Moonraker's paths to the fake       |
+| `npm run test`           | builds if `dist/` is stale, starts the fake and a preview, runs Cypress |
+
+The dev and preview servers use `cypress/fake-moonraker/vite.config.ts`, which adds a proxy
+for `/websocket`, `/server`, `/printer`, `/machine`, `/access`, `/api` and `/_fake`, so
+Mainsail connects on its own origin and `config.json` stays as it is. The fake's control
+endpoints:
+
+- `GET /_fake/requests[?method=printer.gcode.script]`: every request received, oldest first.
+- `POST /_fake/reset`: back to a freshly booted idle printer, with an empty request log.
+- `GET /_fake/health`: readiness probe.
+
+G-code is never executed: the fake answers `ok` and echoes
+`// fake moonraker received: <script>` to the console. Unknown methods get a JSON-RPC
+"method not found" error and a `[fake-moonraker] unknown method` log line. The fixtures in
+`cypress/fake-moonraker/fixtures/` are synthetic; keep them free of real hostnames, addresses,
+paths and keys, because this repository is public.
+
 ## Deploys
 
 jerrypi pulls; nothing pushes to it. The updater lives in the printer's memory repo

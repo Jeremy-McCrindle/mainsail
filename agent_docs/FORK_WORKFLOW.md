@@ -52,7 +52,7 @@ and records what the UI sends, so nothing physical can happen.
 
 ```bash
 npm ci
-npm run fake-moonraker     # terminal 1: the fake on http://localhost:7125
+npm run fake-moonraker     # terminal 1: the fake on 127.0.0.1:7125
 npm run serve:fake         # terminal 2: dev server on http://localhost:8080, pointed at the fake
 ```
 
